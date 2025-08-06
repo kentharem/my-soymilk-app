@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soy 2 Go</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Modal overlay to cover the entire screen */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-200 to-indigo-300 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div class="bg-white p-6 md:p-10 rounded-3xl shadow-2xl max-w-2xl w-full transform transition-all duration-300 hover:shadow-3xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-900 drop-shadow-md">Soy 2 Go</h1>
+            <h2 class="text-lg text-gray-600 mt-1">by Porto Plant Best</h2>
+            <p class="text-gray-500 mt-4">เลือกเมนูโปรดของคุณ แล้วเราจะไปส่งให้ถึงที่!</p>
+        </header>
+
+        <!-- Form for ordering -->
+        <form id="orderForm" class="space-y-6">
+
+            <!-- Menu Selection -->
+            <div class="space-y-4 border-b pb-6 border-blue-100">
+                <h3 class="text-xl font-bold text-blue-700">เมนูน้ำเต้าหู้</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="menuOptions">
+                    <!-- Menu cards will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Shopping Cart / Order Summary -->
+            <div id="cartSection" class="space-y-4 pt-4 border-t border-blue-100 hidden">
+                <h3 class="text-xl font-bold text-blue-700">ตะกร้าสินค้า</h3>
+                <div id="cartContainer" class="space-y-4 text-gray-700 p-4 bg-gray-100 rounded-xl">
+                    <!-- Cart items will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Customer Info (Moved to bottom) and color changed -->
+            <div class="space-y-4 p-6 bg-green-50 rounded-xl shadow-inner border border-green-100">
+                <h3 class="text-xl font-bold text-green-700">ข้อมูลลูกค้า</h3>
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">ชื่อลูกค้า</label>
+                    <input type="text" id="name" name="name" required
+                        class="mt-1 block w-full rounded-xl border-green-200 shadow-sm p-3 focus:border-green-500 focus:ring-green-500 transition duration-150 ease-in-out">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์</label>
+                    <input type="tel" id="phone" name="phone" required
+                        class="mt-1 block w-full rounded-xl border-green-200 shadow-sm p-3 focus:border-green-500 focus:ring-green-500 transition duration-150 ease-in-out">
+                </div>
+            </div>
+
+            <!-- Total Price -->
+            <div class="flex justify-between items-center text-2xl font-bold text-blue-900 pt-2">
+                <span>ราคารวม:</span>
+                <span id="totalPrice">0.00 บาท</span>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn"
+                class="w-full flex justify-center py-3 px-4 rounded-xl shadow-lg text-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                สั่งซื้อเลย
+            </button>
+        </form>
+    </div>
+
+    <!-- Modal for Order Message -->
+    <div id="orderModal" class="modal-overlay hidden">
+        <div id="modalContent" class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center transform transition-all duration-300">
+            <div id="modalMessageText" class="text-lg font-medium"></div>
+            <button id="closeModalBtn" class="mt-4 w-full py-2 px-4 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition duration-150 ease-in-out">
+                ปิด
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Use an IIFE (Immediately Invoked Function Expression) to avoid global scope pollution
+        (function() {
+            // Replace with your Google Apps Script Web app URL
+            const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby-43mnU9R7SL0BorNNwxqEVlvaJ0A0CVPLcqepGgZ7iv4Gh2pE9iXIyQ_Wr5URCLWAsA/exec'; 
+
+            const form = document.getElementById('orderForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const menuOptionsContainer = document.getElementById('menuOptions');
+            const totalPriceElement = document.getElementById('totalPrice');
+            const cartContainer = document.getElementById('cartContainer');
+            const cartSection = document.getElementById('cartSection');
+            
+            // Modal elements
+            const orderModal = document.getElementById('orderModal');
+            const modalContent = document.getElementById('modalContent');
+            const modalMessageText = document.getElementById('modalMessageText');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+
+            // Define the soymilk menu with price and image
+            const soymilkMenu = [
+                {
+                    name: "น้ำเต้าหู้ สูตรดั้งเดิม",
+                    price: 20,
+                    image: "https://i.postimg.cc/yNhQv3d5/Gemini-Generated-Image-jhdkppjhdkppjhdk.png"
+                },
+                {
+                    name: "น้ำเต้าหู้ สูตรงาดำ",
+                    price: 30,
+                    image: "https://i.postimg.cc/NFnp51Jy/Gemini-Generated-Image-kqm9c2kqm9c2kqm9.png"
+                },
+                {
+                    name: "น้ำเต้าหู้ รสชาเขียว (มัทฉะ)",
+                    price: 30,
+                    image: "https://i.postimg.cc/Jn2v93pm/Grid-Art-20250709-000638283.png"
+                },
+                {
+                    name: "น้ำเต้าหู้ รสชาไทย",
+                    price: 30,
+                    image: "https://i.postimg.cc/0NQqFN9Y/Grid-Art-20250709-000320416.png"
+                }
+            ];
+
+            // Dynamically create menu cards
+            soymilkMenu.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-50 rounded-xl overflow-hidden shadow-md flex flex-col items-center p-4';
+                card.innerHTML = `
+                    <img src="${item.image}" alt="${item.name}" class="rounded-lg mb-2">
+                    <h3 class="text-lg font-semibold text-blue-800">${item.name}</h3>
+                    <p class="text-xl font-bold text-gray-700">${item.price} บาท</p>
+                    <button type="button" class="add-to-cart-btn mt-3 w-full py-2 px-4 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-colors"
+                        data-name="${item.name}" data-price="${item.price}">
+                        เพิ่มลงในตะกร้า
+                    </button>
+                `;
+                menuOptionsContainer.appendChild(card);
+            });
+
+            // Function to update the order summary and total price
+            function updateCartAndPrice() {
+                let total = 0;
+                let hasItems = false;
+                const cartItems = document.querySelectorAll('.cart-item');
+                
+                if (cartItems.length > 0) {
+                    hasItems = true;
+                }
+
+                cartItems.forEach(item => {
+                    const quantityInput = item.querySelector('.quantity-input');
+                    const price = parseFloat(quantityInput.dataset.price);
+                    const quantity = parseInt(quantityInput.value);
+                    
+                    if (!isNaN(price) && !isNaN(quantity) && quantity > 0) {
+                        total += price * quantity;
+                    }
+                });
+
+                // Show or hide the cart section based on if there are items
+                if (hasItems) {
+                    cartSection.classList.remove('hidden');
+                } else {
+                    cartSection.classList.add('hidden');
+                }
+
+                totalPriceElement.textContent = `${total.toFixed(2)} บาท`;
+            }
+
+            // Event listener for "Add to Cart" button
+            menuOptionsContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('.add-to-cart-btn');
+                if (button) {
+                    const itemName = button.dataset.name;
+                    const itemPrice = button.dataset.price;
+                    const itemId = Date.now(); // Unique ID for each cart item
+
+                    // Create a new cart item element
+                    const cartItem = document.createElement('div');
+                    cartItem.className = "cart-item flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-gray-200"; // Added border for clarity
+                    cartItem.dataset.id = itemId;
+                    cartItem.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-base font-semibold text-blue-800">${itemName}</h4>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <label for="sweetness-${itemId}" class="text-sm">ความหวาน:</label>
+                                <select name="sweetness-${itemId}" id="sweetness-${itemId}" class="rounded-md border-gray-300 p-1 text-sm">
+                                    <option value="หวานปกติ">หวานปกติ</option>
+                                    <option value="หวานน้อย">หวานน้อย</option>
+                                    <option value="ไม่ใส่น้ำตาล">ไม่ใส่น้ำตาล</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" class="quantity-btn p-1 text-gray-600 hover:text-white hover:bg-blue-500 rounded-full transition-colors" data-action="decrement" data-id="${itemId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <input type="number" name="quantity-${itemId}" value="1" min="1" data-price="${itemPrice}" class="w-12 text-center text-sm font-bold border rounded-md p-1 focus:outline-none focus:ring-1 focus:ring-blue-500 quantity-input">
+                            <button type="button" class="quantity-btn p-1 text-gray-600 hover:text-white hover:bg-blue-500 rounded-full transition-colors" data-action="increment" data-id="${itemId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <button type="button" class="remove-item-btn p-1 text-red-500 hover:text-red-700 transition-colors" data-id="${itemId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.728-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    `;
+                    cartContainer.appendChild(cartItem);
+                    updateCartAndPrice();
+                }
+            });
+
+            // Event listener for cart item buttons and input changes (quantity, sweetness)
+            cartContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('.quantity-btn');
+                const removeBtn = e.target.closest('.remove-item-btn');
+
+                if (button) {
+                    const action = button.dataset.action;
+                    const itemId = button.dataset.id;
+                    const input = cartContainer.querySelector(`[name="quantity-${itemId}"]`);
+                    let value = parseInt(input.value);
+
+                    if (action === 'increment') {
+                        value++;
+                    } else if (action === 'decrement' && value > 1) {
+                        value--;
+                    }
+                    input.value = value;
+                    updateCartAndPrice();
+                } else if (removeBtn) {
+                    const itemId = removeBtn.dataset.id;
+                    const itemToRemove = cartContainer.querySelector(`[data-id="${itemId}"]`);
+                    if (itemToRemove) {
+                        itemToRemove.remove();
+                        updateCartAndPrice();
+                    }
+                }
+            });
+            
+            cartContainer.addEventListener('input', (e) => {
+                 if (e.target.classList.contains('quantity-input') || e.target.tagName === 'SELECT') {
+                    updateCartAndPrice();
+                }
+            });
+
+            // Event listener for closing the modal
+            closeModalBtn.addEventListener('click', () => {
+                hideMessage();
+                form.reset();
+                cartContainer.innerHTML = '';
+                updateCartAndPrice();
+                resetButton();
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Show a loading state
+                submitBtn.textContent = 'กำลังส่งข้อมูล...';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('bg-blue-400');
+                submitBtn.classList.remove('hover:bg-blue-700');
+                
+                // Clear any previous messages
+                hideMessage();
+
+                // Get form data from cart
+                const formData = new FormData(form);
+                const menuItems = [];
+                let totalQuantity = 0;
+                let totalPrice = 0;
+
+                const cartItems = document.querySelectorAll('.cart-item');
+                cartItems.forEach(item => {
+                    const itemName = item.querySelector('h4').textContent;
+                    const quantityInput = item.querySelector('.quantity-input');
+                    const sweetnessSelect = item.querySelector('select');
+                    
+                    const quantity = parseInt(quantityInput.value);
+                    const sweetness = sweetnessSelect.value;
+                    const price = parseFloat(quantityInput.dataset.price);
+
+                    if (quantity > 0) {
+                        menuItems.push(`${itemName} x${quantity} (${sweetness})`);
+                        totalQuantity += quantity;
+                        totalPrice += price * quantity;
+                    }
+                });
+
+                const data = {
+                    name: formData.get('name'),
+                    phone: formData.get('phone'),
+                    menu: menuItems.join(', '), 
+                    quantity: totalQuantity,
+                    totalPrice: totalPrice 
+                };
+
+                // Check if all required fields are filled
+                if (!data.name || !data.phone || menuItems.length === 0) {
+                    showMessage('กรุณากรอกข้อมูลให้ครบถ้วนและเลือกเมนูอย่างน้อยหนึ่งรายการ', 'error');
+                    resetButton();
+                    return;
+                }
+
+                try {
+                    const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(data).toString(),
+                    });
+
+                    // Display success message with total price
+                    showMessage(`ออเดอร์ของคุณถูกส่งเรียบร้อยแล้ว! ยอดรวม: ${totalPrice.toFixed(2)} บาท`, 'success');
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    showMessage('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง', 'error');
+                } finally {
+                    // Reset button to its original state
+                    resetButton();
+                }
+            });
+
+            // Function to show message modal
+            function showMessage(message, type) {
+                orderModal.classList.remove('hidden');
+                modalMessageText.textContent = message;
+                
+                // Set the modal content color based on message type
+                if (type === 'success') {
+                    modalContent.classList.add('bg-green-100', 'text-green-800');
+                    modalContent.classList.remove('bg-red-100', 'text-red-800');
+                } else {
+                    modalContent.classList.add('bg-red-100', 'text-red-800');
+                    modalContent.classList.remove('bg-green-100', 'text-green-800');
+                }
+            }
+
+            // Function to hide message modal
+            function hideMessage() {
+                orderModal.classList.add('hidden');
+                modalMessageText.textContent = '';
+                modalContent.classList.remove('bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+            }
+
+            // Function to reset the submit button
+            function resetButton() {
+                submitBtn.textContent = 'สั่งซื้อเลย';
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('bg-blue-400');
+                submitBtn.classList.add('hover:bg-blue-700');
+            }
+            
+            // Initial call to set total price and summary to 0/empty
+            updateCartAndPrice();
+        })();
+    </script>
+</body>
+</html>
